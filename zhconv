@@ -1,0 +1,78 @@
+#!/usr/bin/python
+#_*_ coding:UTF-8 _*_
+#
+#  Author: Beata
+#    Blog: http://blog.nahoya.com
+#     URL: http://github.com/beata/zhconv
+# License: http://creativecommons.org/licenses/by-sa/3.0/
+
+import os.path
+from optparse import OptionParser
+
+VERSION = '0.1'
+
+def replace_words(text, word_dic):
+  '''
+  take a text and replace words that match akey in a dictionary with
+  the associated value, return the changed text
+  '''
+  for key in word_dic:
+    text = text.replace(key, word_dic[key])
+  return text
+
+def convert(filename, dict, options):
+  '''
+  convert text to specified language
+  '''
+  data = open(filename).read()
+  data = replace_words(data, dict.chars)
+  data = replace_words(data, dict.phrase)
+
+  if options.override:
+    f = file(filename, 'w')
+    f.write(data)
+    f.close()
+  else:
+    print data
+
+def main():
+  parser = OptionParser('usage: %prog [-t or -s] [options] file', version=VERSION)
+
+  parser.add_option('-t', '--traditional', dest='convertTo',\
+      action='store_const', const='s2t', default='',\
+      help='convert to Traditional Chinese')
+  parser.add_option('-s', '--simplified', dest='convertTo',\
+      action='store_const', const='t2s', default='',\
+      help='convert to Simplified Chinese')
+
+  parser.add_option('-w', '--write', dest='override',\
+      action='store_true', default=False,\
+      help='override the original file with the converted text')
+
+  options, args = parser.parse_args()
+
+  # 檢查是否有指定轉換格式
+  if options.convertTo == '':
+    parser.print_usage()
+    print '''Please specified which format you want convert to.
+    -t  --traditional  convert to Traditional Chinese
+    -s  --simplified   convert to Simplified Chinese'''
+
+  if args:  # 有檔案
+    if options.convertTo == 's2t':
+      import s2t as dic
+    elif options.convertTo == 't2s':
+      import t2s as dic
+
+    for filename in args:
+      if os.path.isfile(filename):
+        convert(filename, dic, options)
+      else:
+        print '"%s" is not a file' % filename, 
+
+  else: # 沒有指定檔案
+    parser.print_usage()
+    print '''Please specified a file to convert.'''
+
+if __name__ == '__main__':
+  main()

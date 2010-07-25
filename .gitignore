@@ -9,3 +9,4 @@
 .DS_Store
 *[tT]humbs.db
 *~
+*.pyc
