@@ -6,34 +6,108 @@
 #     URL: http://github.com/beata/zhconv
 # License: http://creativecommons.org/licenses/by-sa/3.0/
 
-import os.path
+import os.path, sys
 from optparse import OptionParser
+from progressBar import *
 
 VERSION = '0.1'
 
-def replace_words(text, word_dic):
-  '''
-  take a text and replace words that match akey in a dictionary with
-  the associated value, return the changed text
-  '''
-  for key in word_dic:
-    text = text.replace(key, word_dic[key])
-  return text
+class Error(Exception):
+  pass
 
-def convert(filename, dict, options):
+def parse_file(filename, options, dict):
   '''
-  convert text to specified language
+  parse file
   '''
-  data = open(filename).read()
-  data = replace_words(data, dict.chars)
-  data = replace_words(data, dict.phrase)
 
   if options.override:
-    f = file(filename, 'w')
+    class BarLabel(ProgressBarWidget):
+      def update(self, pbar):
+        if pbar.percentage() < 100:
+          return 'Parsing "%s"' % filename
+        else:
+          return 'Parsing "%s" DONE' % filename
+    widgets = ['    ', Bar('#'), ' ', BarLabel(), ' | ',Percentage(),' | ', ETA(), '    ']
+    bar = ProgressBar(widgets=widgets, maxval=os.path.getsize(filename)).start()
+    data = ''
+
+  f = open(filename)
+
+  while True:
+    line = f.readline()
+    if not line: break
+
+    new_line = ''
+
+    # replace chars
+    for char in unicode(line, 'UTF8'):
+      char = char.encode('UTF8')
+      new_line += dict.chars.get(char, char)
+
+    # replace phrase
+    for key in dict.phrase:
+      if key not in new_line: continue
+      new_line = new_line.replace(key, dict.phrase[key])
+
+    if options.override:
+      data += new_line + '\n'
+      bar.update(f.tell())
+    else:
+      print new_line
+
+  f.close()
+
+  if options.override:
+    f = open(filename, 'w')
     f.write(data)
     f.close()
-  else:
-    print data
+    bar.finish()
+
+def convert(files, options):
+  '''
+  options.convertTo   string, required
+      's2t' - convert to Traditional Chinese
+      't2s' - convert to Simplified Chinese
+
+  options.override    boolean, optional, default = False
+      Override the original file with the converted text?
+  '''
+  try:
+    # 檢查是否有指定轉換格式
+    if options.convertTo == '':
+      if __name__ == '__main__':
+        raise Error('''Please specified which format you want convert to.
+        -t  --traditional  convert to Traditional Chinese
+        -s  --simplified   convert to Simplified Chinese''');
+      else:
+        raise Error('Please specified which format you want convert to.', convert.__doc__);
+
+    if files:  # 有檔案
+      if options.convertTo == 's2t':
+        import s2t as dic
+      elif options.convertTo == 't2s':
+        import t2s as dic
+
+      file_not_found = []
+
+      for filename in files:
+        if os.path.isfile(filename):
+          parse_file(filename, options, dic)
+        else:
+          file_not_found.append(filename)
+
+      if len(file_not_found) > 0:
+        print '[Warning] "%s" is not a file' % ', '.join(file_not_found), 
+
+    else: # 沒有指定檔案
+      raise Error('Please specified a file to convert.')
+
+  except Error, e:
+    if __name__ == '__main__':
+      raise e
+    else:
+      print '\n'.join(e.args)
+
 
 def main():
   parser = OptionParser('usage: %prog [-t or -s] [options] file', version=VERSION)
@@ -51,28 +125,11 @@ def main():
 
   options, args = parser.parse_args()
 
-  # 檢查是否有指定轉換格式
-  if options.convertTo == '':
+  try:
+    convert(args, options)
+  except Error as e:
     parser.print_usage()
-    print '''Please specified which format you want convert to.
-    -t  --traditional  convert to Traditional Chinese
-    -s  --simplified   convert to Simplified Chinese'''
-
-  if args:  # 有檔案
-    if options.convertTo == 's2t':
-      import s2t as dic
-    elif options.convertTo == 't2s':
-      import t2s as dic
-
-    for filename in args:
-      if os.path.isfile(filename):
-        convert(filename, dic, options)
-      else:
-        print '"%s" is not a file' % filename, 
-
-  else: # 沒有指定檔案
-    parser.print_usage()
-    print '''Please specified a file to convert.'''
+    print '\n'.join(e.args)
 
 if __name__ == '__main__':
   main()
