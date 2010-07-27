@@ -1,6 +1,8 @@
 #!/usr/bin/python
 #_*_ coding:UTF-8 _*_
 #
+# Convert file text between Traditional Chinese and Simplified Chinese
+#
 #  Author: Beata
 #    Blog: http://blog.nahoya.com
 #     URL: http://github.com/beata/zhconv
@@ -10,108 +12,87 @@ import os.path, sys, shutil
 from optparse import OptionParser
 from progressBar import ProgressBarWidget, Bar, Percentage, ETA, ProgressBar
 
-VERSION = '0.1'
+class BarLabel(ProgressBarWidget):
+  def __init__(self, proc_text, done_text):
+    ProgressBarWidget.__init__(self)
+    self.proc_text = proc_text
+    self.done_text = done_text
+  def update(self, pbar):
+    if pbar.percentage() < 100:
+      return self.proc_text
+    else:
+      return self.done_text
 
-class Error(Exception):
+class ZHConvertError(Exception):
   pass
 
-def parse_file(filename, options, dict):
-  '''
-  parse file
-  '''
+class ZHConvert:
+  VERSION = '0.2'
 
-  if options.override:
-    class BarLabel(ProgressBarWidget):
-      def update(self, pbar):
-        if pbar.percentage() < 100:
-          return 'Parsing "%s"' % filename
-        else:
-          return 'Parsing "%s" DONE' % filename
-    widgets = ['    ', Bar('#'), ' ', BarLabel(), ' | ',Percentage(),' | ', ETA(), '    ']
+  def __init__(self, files, convertTo, override=False):
+
+    if type(files).__name__ == 'str':
+      files = [files]
+
+    if convertTo not in ['s2t', 't2s']:
+      raise ZHConvertError('Please specified which format you want convert to.');
+
+    exec('import '+convertTo+' as dic')
+
+    self.convertTo = convertTo
+    self.dict = dic
+
+    if override:
+      for filename in files:
+        self.convert_save(filename)
+    else:
+      for filename in files:
+        self.convert(filename)
+
+  def convert(self, filename):
+    f = open(filename)
+    try:
+      while True:
+        line = f.readline()
+        if not line: break
+        print self._parse(line)
+    finally:
+      f.close()
+
+  def convert_save(self, filename):
+    widgets = ['    ', Bar('#'), ' ', BarLabel('Parsing "%s" ....' % filename, 'Parsing "%s" Done' % filename), ' | ',Percentage(),' | ', ETA(), '    ']
     bar = ProgressBar(widgets=widgets, maxval=os.path.getsize(filename)).start()
-    data = ''
-    tmpname = filename + '.' + options.convertTo
+    tmpname = filename + '.' + self.convertTo
+    f = open(filename)
     w = open(tmpname, 'w')
+    try:
+      while True:
+        line = f.readline()
+        if not line: break
+        w.write( self._parse(line) )
+        bar.update(f.tell())
 
-  f = open(filename)
+      shutil.move(tmpname, filename)
+      bar.finish()
+    finally:
+      f.close()
+      w.close()
 
-  while True:
-    line = f.readline()
-    if not line: break
-
+  def _parse(self, line):
     new_line = ''
-
     # replace chars
     for char in unicode(line, 'UTF8'):
       char = char.encode('UTF8')
-      new_line += dict.chars.get(char, char)
-
+      new_line += self.dict.chars.get(char, char)
     # replace phrase
-    for key in dict.phrase:
+    for key in self.dict.phrase:
       if key not in new_line: continue
-      new_line = new_line.replace(key, dict.phrase[key])
+      new_line = new_line.replace(key, self.dict.phrase[key])
 
-    if options.override:
-      w.write(new_line)
-      bar.update(f.tell())
-    else:
-      print new_line
+    return new_line
 
-  f.close()
-
-  if options.override:
-    w.close()
-    shutil.move(tmpname, filename)
-    bar.finish()
-
-def convert(files, options):
-  '''
-  options.convertTo   string, required
-      's2t' - convert to Traditional Chinese
-      't2s' - convert to Simplified Chinese
-
-  options.override    boolean, optional, default = False
-      Override the original file with the converted text?
-  '''
-  try:
-    # 檢查是否有指定轉換格式
-    if options.convertTo == '':
-      if __name__ == '__main__':
-        raise Error('''Please specified which format you want convert to.
-        -t  --traditional  convert to Traditional Chinese
-        -s  --simplified   convert to Simplified Chinese''');
-      else:
-        raise Error('Please specified which format you want convert to.', convert.__doc__);
-
-    if files:  # 有檔案
-      if options.convertTo == 's2t':
-        import s2t as dic
-      elif options.convertTo == 't2s':
-        import t2s as dic
-
-      file_not_found = []
-
-      for filename in files:
-        if os.path.isfile(filename):
-          parse_file(filename, options, dic)
-        else:
-          file_not_found.append(filename)
-
-      if len(file_not_found) > 0:
-        print '[Warning] "%s" is not a file' % ', '.join(file_not_found), 
-
-    else: # 沒有指定檔案
-      raise Error('Please specified a file to convert.')
-
-  except Error, e:
-    if __name__ == '__main__':
-      raise e
-    else:
-      print '\n'.join(e.args)
-
-
-def main():
-  parser = OptionParser('usage: %prog [-t or -s] [options] file', version=VERSION)
+if __name__ == '__main__':
+  parser = OptionParser('usage: %prog [-t or -s] [options] files', version=ZHConvert.VERSION)
 
   parser.add_option('-t', '--traditional', dest='convertTo',\
       action='store_const', const='s2t', default='',\
@@ -124,13 +105,22 @@ def main():
       action='store_true', default=False,\
       help='override the original file with the converted text')
 
-  options, args = parser.parse_args()
+  opt, args = parser.parse_args()
+
+  if len(args) == 0:
+    parser.print_usage()
+    print 'Please specified the file you want convert to.'
+    exit()
 
   try:
-    convert(args, options)
-  except Error as e:
+    ZHConvert(args, opt.convertTo, opt.override)
+  except ZHConvertError, e:
     parser.print_usage()
     print '\n'.join(e.args)
-
-if __name__ == '__main__':
-  main()
+  except (OSError, IOError), e:
+    print '%s(%s) on "%s": %s' % (type(e).__name__, e.errno, e.filename, e.strerror)
+  except KeyboardInterrupt:
+    print 'KeyboardInterrupt'
+  except:
+    print 'An Unexpected Error Occurred'
+    raise
