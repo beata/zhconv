@@ -6,9 +6,9 @@
 #     URL: http://github.com/beata/zhconv
 # License: http://creativecommons.org/licenses/by-sa/3.0/
 
-import os.path, sys
+import os.path, sys, shutil
 from optparse import OptionParser
-from progressBar import *
+from progressBar import ProgressBarWidget, Bar, Percentage, ETA, ProgressBar
 
 VERSION = '0.1'
 
@@ -30,6 +30,8 @@ def parse_file(filename, options, dict):
     widgets = ['    ', Bar('#'), ' ', BarLabel(), ' | ',Percentage(),' | ', ETA(), '    ']
     bar = ProgressBar(widgets=widgets, maxval=os.path.getsize(filename)).start()
     data = ''
+    tmpname = filename + '.' + options.convertTo
+    w = open(tmpname, 'w')
 
   f = open(filename)
 
@@ -50,7 +52,7 @@ def parse_file(filename, options, dict):
       new_line = new_line.replace(key, dict.phrase[key])
 
     if options.override:
-      data += new_line + '\n'
+      w.write(new_line)
       bar.update(f.tell())
     else:
       print new_line
@@ -58,9 +60,8 @@ def parse_file(filename, options, dict):
   f.close()
 
   if options.override:
-    f = open(filename, 'w')
-    f.write(data)
-    f.close()
+    w.close()
+    shutil.move(tmpname, filename)
     bar.finish()
 
 def convert(files, options):
