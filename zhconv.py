@@ -27,9 +27,19 @@ class ZHConvertError(Exception):
   pass
 
 class ZHConvert:
+
   VERSION = '0.2'
 
   def __init__(self, files, convertTo, override=False):
+    '''
+    files     - REQUIRED, list|str
+                Files to be convert.
+    convertTo - REQUIRED, str
+                's2t' - convert Simplified Chinese to Traditional Chinese.
+                't2s' - convert Traditional Chinese to Simplified Chinese.
+    override  - OPTIONAL, boolean
+                Update the file when complete the convertion?
+    '''
 
     if type(files).__name__ == 'str':
       files = [files]
