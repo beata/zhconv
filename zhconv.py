@@ -89,17 +89,14 @@ class ZHConvert:
       fw.close()
 
   def __parse(self, line):
-    new_line = ''
     # replace chars
-    for char in unicode(line, 'UTF8'):
-      char = char.encode('UTF8')
-      new_line += self.dict.chars.get(char, char)
+    line = ''.join([self.dict.chars.get(c, c) for c in unicode(line, 'UTF8')])
     # replace phrase
     for key in self.dict.phrase:
-      if key not in new_line: continue
-      new_line = new_line.replace(key, self.dict.phrase[key])
+      if key not in line: continue
+      line = line.replace(key, self.dict.phrase[key])
 
-    return new_line
+    return line.encode('utf8')
 
 if __name__ == '__main__':
   parser = OptionParser('usage: %prog [-t or -s] [options] files', version=ZHConvert.VERSION)
