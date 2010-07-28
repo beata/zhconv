@@ -71,22 +71,22 @@ class ZHConvert:
 
   def convert_save(self, filename):
     widgets = ['    ', Bar('#'), ' ', BarLabel('Parsing "%s" ....' % filename, 'Parsing "%s" Done' % filename), ' | ',Percentage(),' | ', ETA(), '    ']
-    bar = ProgressBar(widgets=widgets, maxval=os.path.getsize(filename)).start()
     tmpname = filename + '.' + self.convertTo
-    f = open(filename)
-    w = open(tmpname, 'w')
+    fr = open(filename)
+    fw = open(tmpname, 'w')
+    bar = ProgressBar(widgets=widgets, maxval=os.path.getsize(filename)).start()
     try:
       while True:
-        line = f.readline()
+        line = fr.readline()
         if not line: break
-        w.write( self._parse(line) )
-        bar.update(f.tell())
+        fw.write( self._parse(line) )
+        bar.update(fr.tell())
 
       shutil.move(tmpname, filename)
       bar.finish()
     finally:
-      f.close()
-      w.close()
+      fr.close()
+      fw.close()
 
   def _parse(self, line):
     new_line = ''
@@ -127,10 +127,8 @@ if __name__ == '__main__':
   except ZHConvertError, e:
     parser.print_usage()
     print '\n'.join(e.args)
-  except (OSError, IOError), e:
     print '%s(%s) on "%s": %s' % (type(e).__name__, e.errno, e.filename, e.strerror)
   except KeyboardInterrupt:
     print 'KeyboardInterrupt'
-  except:
-    print 'An Unexpected Error Occurred'
-    raise
+  except Exception, e:
+    sys.stderr.write('%s: %s\n' % (type(e).__name__, str(e)))
