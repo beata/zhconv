@@ -65,7 +65,7 @@ class ZHConvert:
       while True:
         line = f.readline()
         if not line: break
-        print self._parse(line)
+        print self.__parse(line)
     finally:
       f.close()
 
@@ -79,7 +79,7 @@ class ZHConvert:
       while True:
         line = fr.readline()
         if not line: break
-        fw.write( self._parse(line) )
+        fw.write( self.__parse(line) )
         bar.update(fr.tell())
 
       shutil.move(tmpname, filename)
@@ -88,7 +88,7 @@ class ZHConvert:
       fr.close()
       fw.close()
 
-  def _parse(self, line):
+  def __parse(self, line):
     new_line = ''
     # replace chars
     for char in unicode(line, 'UTF8'):
